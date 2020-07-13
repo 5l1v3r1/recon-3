@@ -167,6 +167,10 @@ echo "installing unfurl"
 go get -u github.com/tomnomnom/unfurl 
 echo "done"
 
+echo "installing assetfinder"
+go get -u github.com/tomnomnom/assetfinder 
+echo "done"
+
 echo "installing waybackurls"
 go get github.com/tomnomnom/waybackurls
 echo "done"
@@ -182,6 +186,32 @@ echo "done"
 echo "installing crtndstry"
 git clone https://github.com/nahamsec/crtndstry.git
 echo "done"
+
+echo "installing ffuf"
+go get github.com/ffuf/ffuf
+echo "done"
+
+echo "installing recon-ng"
+cd ~/tools/
+git clone https://github.com/lanmaster53/recon-ng.git
+cd recon-ng
+ln -s ~/tools/recon-ng/ /usr/share/recon-ng
+pip install -r REQUIREMENTS
+cd ~/tools/
+echo "done"
+
+# echo "commonspeak"
+# cd ~/tools/
+# sudo apt-get install jq
+# git clone https://github.com/assetnote/commonspeak2
+# cd ~/tools/commonspeak2/
+# sudo add-apt-repository ppa:masterminds/glide && sudo apt-get update
+# sudo apt-get install glide
+# go get -u cloud.google.com/go/bigquery
+# glide install > /dev/null
+# go install . > /dev/null
+# cd ~/tools/
+# echo "done"
 
 echo "downloading Seclists"
 cd ~/tools/

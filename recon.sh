@@ -22,7 +22,7 @@ SECONDS=0
 
 domain=
 subreport=
-usage() { echo -e "Usage: ./lazyrecon.sh -d domain.com [-e] [excluded.domain.com,other.domain.com]\nOptions:\n  -e\t-\tspecify excluded subdomains\n " 1>&2; exit 1; }
+usage() { echo -e "Usage: ./recon.sh -d domain.com\n " 1>&2; exit 1; }
 
 while getopts ":d:e:r:" o; do
     case "${o}" in
@@ -49,10 +49,11 @@ done
 shift $((OPTIND - 1))
 
 if [ -z "${domain}" ] && [[ -z ${subreport[@]} ]]; then
-   usage; exit 1;
+  usage; exit 1;
 fi
 
-discovery(){
+discovery()
+{
 	hostalive $domain
 	cleandirsearch $domain
 	aqua $domain
@@ -61,49 +62,63 @@ discovery(){
 	dirsearcher
 }
 
-waybackrecon () {
-echo "Scraping wayback for data..."
-cat ./$domain/$foldername/urllist.txt | waybackurls > ./$domain/$foldername/wayback-data/waybackurls.txt
-cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | unfurl --unique keys > ./$domain/$foldername/wayback-data/paramlist.txt
-[ -s ./$domain/$foldername/wayback-data/paramlist.txt ] && echo "Wordlist saved to /$domain/$foldername/wayback-data/paramlist.txt"
-
-cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.js(\?|$)" | sort -u > ./$domain/$foldername/wayback-data/jsurls.txt
-[ -s ./$domain/$foldername/wayback-data/jsurls.txt ] && echo "JS Urls saved to /$domain/$foldername/wayback-data/jsurls.txt"
-
-cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.php(\?|$) | sort -u " > ./$domain/$foldername/wayback-data/phpurls.txt
-[ -s ./$domain/$foldername/wayback-data/phpurls.txt ] && echo "PHP Urls saved to /$domain/$foldername/wayback-data/phpurls.txt"
-
-cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.aspx(\?|$) | sort -u " > ./$domain/$foldername/wayback-data/aspxurls.txt
-[ -s ./$domain/$foldername/wayback-data/aspxurls.txt ] && echo "ASP Urls saved to /$domain/$foldername/wayback-data/aspxurls.txt"
-
-cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.jsp(\?|$) | sort -u " > ./$domain/$foldername/wayback-data/jspurls.txt
-[ -s ./$domain/$foldername/wayback-data/jspurls.txt ] && echo "JSP Urls saved to /$domain/$foldername/wayback-data/jspurls.txt"
+hostalive()
+{
+  echo "Probing for live hosts..."
+  cat ./$domain/$foldername/alldomains.txt | sort -u | httprobe -c 50 -t 3000 >> ./$domain/$foldername/responsive.txt
+  cat ./$domain/$foldername/responsive.txt | sed 's/\http\:\/\///g' |  sed 's/\https\:\/\///g' | sort -u | while read line; do
+  probeurl=$(cat ./$domain/$foldername/responsive.txt | sort -u | grep -m 1 $line)
+  echo "$probeurl" >> ./$domain/$foldername/urllist.txt
+  done
+  echo "$(cat ./$domain/$foldername/urllist.txt | sort -u)" > ./$domain/$foldername/urllist.txt
+  echo  "${yellow}Total of $(wc -l ./$domain/$foldername/urllist.txt | awk '{print $1}') live subdomains were found${reset}"
 }
 
-cleanup(){
+waybackrecon () 
+{
+  echo "Scraping wayback for data..."
+  cat ./$domain/$foldername/urllist.txt | waybackurls > ./$domain/$foldername/wayback-data/waybackurls.txt
+  cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | unfurl --unique keys > ./$domain/$foldername/wayback-data/paramlist.txt
+  [ -s ./$domain/$foldername/wayback-data/paramlist.txt ] && echo "Wordlist saved to /$domain/$foldername/wayback-data/paramlist.txt"
+
+  cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.js(\?|$)" | sort -u > ./$domain/$foldername/wayback-data/jsurls.txt
+  [ -s ./$domain/$foldername/wayback-data/jsurls.txt ] && echo "JS Urls saved to /$domain/$foldername/wayback-data/jsurls.txt"
+
+  cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.php(\?|$)" | sort -u > ./$domain/$foldername/wayback-data/phpurls.txt
+  [ -s ./$domain/$foldername/wayback-data/phpurls.txt ] && echo "PHP Urls saved to /$domain/$foldername/wayback-data/phpurls.txt"
+
+  cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.aspx(\?|$)" | sort -u > ./$domain/$foldername/wayback-data/aspxurls.txt
+  [ -s ./$domain/$foldername/wayback-data/aspxurls.txt ] && echo "ASP Urls saved to /$domain/$foldername/wayback-data/aspxurls.txt"
+
+  cat ./$domain/$foldername/wayback-data/waybackurls.txt  | sort -u | grep -P "\w+\.jsp(\?|$)" | sort -u > ./$domain/$foldername/wayback-data/jspurls.txt
+  [ -s ./$domain/$foldername/wayback-data/jspurls.txt ] && echo "JSP Urls saved to /$domain/$foldername/wayback-data/jspurls.txt"
+}
+
+cleanup()
+{
   cd ./$domain/$foldername/screenshots/
   rename 's/_/-/g' -- *
 
   cd $path
 }
 
-hostalive(){
-echo "Probing for live hosts..."
-cat ./$domain/$foldername/alldomains.txt | sort -u | httprobe -c 50 -t 3000 >> ./$domain/$foldername/responsive.txt
-cat ./$domain/$foldername/responsive.txt | sed 's/\http\:\/\///g' |  sed 's/\https\:\/\///g' | sort -u | while read line; do
-probeurl=$(cat ./$domain/$foldername/responsive.txt | sort -u | grep -m 1 $line)
-echo "$probeurl" >> ./$domain/$foldername/urllist.txt
-done
-echo "$(cat ./$domain/$foldername/urllist.txt | sort -u)" > ./$domain/$foldername/urllist.txt
-echo  "${yellow}Total of $(wc -l ./$domain/$foldername/urllist.txt | awk '{print $1}') live subdomains were found${reset}"
-}
-
-recon(){
-
+recon()
+{
   echo "${green}Recon started on $domain ${reset}"
-  echo "Listing subdomains using sublister..."
-  python ~/tools/Sublist3r/sublist3r.py -d $domain -t 10 -v -o ./$domain/$foldername/$domain.txt > /dev/null
-  python3 oneforall.py --target $1 --takeover True run --format txt --path ./$domain/$foldername/$domain.txt > /dev/null
+  echo "Getting subdomains using..."
+  echo "subfinder..."
+  python3 ~/tools/Sublist3r/sublist3r.py -d $domain -t 10 -v -o ./$domain/$foldername/$domain.txt > /dev/null
+  echo "assetfinder..."
+  assetfinder -subs-only $1 | tee -a ./$domain/$foldername/$domain.txt > /dev/null
+  sleep 1
+
+  echo "altdns..."
+  altdns -i ./$domain/$foldername/$domain.txt -o ./$domain/$foldername/altdns_output -w ~/tools/wordlists/altdns-words.txt
+  sleep 1
+
+  echo "altdns host check..."
+  cat ./$domain/$foldername/altdns_output | httprobe --prefer-https | tee -a ./$domain/$foldername/$domain.txt
+  echo "Sorting domains..."
   sort ./$domain/$foldername/$domain.txt | uniq -u
   echo "Checking certspotter..."
   curl -s https://certspotter.com/api/v0/certs\?domain\=$domain | jq '.[].dns_names[]' | sed 's/\"//g' | sed 's/\*\.//g' | sort -u | grep $domain >> ./$domain/$foldername/$domain.txt
@@ -112,86 +127,88 @@ recon(){
   echo "Starting discovery..."
   discovery $domain
   cat ./$domain/$foldername/$domain.txt | sort -u > ./$domain/$foldername/$domain.txt
-
 }
 
-excludedomains(){
-  # from @incredincomp with love <3
-  echo "Excluding domains (if you set them with -e)..."
-  IFS=$'\n'
-  # prints the $excluded array to excluded.txt with newlines 
-  printf "%s\n" "${excluded[*]}" > ./$domain/$foldername/excluded.txt
-  # this form of grep takes two files, reads the input from the first file, finds in the second file and removes
-  grep -vFf ./$domain/$foldername/excluded.txt ./$domain/$foldername/alldomains.txt > ./$domain/$foldername/alldomains2.txt
-  mv ./$domain/$foldername/alldomains2.txt ./$domain/$foldername/alldomains.txt
-  #rm ./$domain/$foldername/excluded.txt # uncomment to remove excluded.txt, I left for testing purposes
-  echo "Subdomains that have been excluded from discovery:"
-  printf "%s\n" "${excluded[@]}"
-  unset IFS
+excludedomains()
+{
+  if [ -z "$excluded" ]; then
+    echo "No domains have been excluded."
+  else
+    # from @incredincomp with love <3 SORRY!!
+    echo "Excluding domains (if you set them with -e)..."
+    IFS=$'\n'
+    # prints the $excluded array to excluded.txt with newlines
+    printf "%s\n" "${excluded[*]}" > ./$domain/$foldername/excluded.txt
+    # this form of grep takes two files, reads the input from the first file, finds in the second file and removes
+    grep -vFf ./$domain/$foldername/excluded.txt ./$domain/$foldername/alldomains.txt > ./$domain/$foldername/alldomains2.txt
+    mv ./$domain/$foldername/alldomains2.txt ./$domain/$foldername/alldomains.txt
+    #rm ./$domain/$foldername/excluded.txt # uncomment to remove excluded.txt, I left for testing purposes
+    echo "Subdomains that have been excluded from discovery:"
+    printf "%s\n" "${excluded[@]}"
+    unset IFS
+  fi
 }
 
-dirsearcher(){
-
-echo "Starting dirsearch..."
-cat ./$domain/$foldername/urllist.txt | xargs -P$subdomainThreads -I % sh -c "python3 ~/tools/dirsearch/dirsearch.py -e php,asp,aspx,jsp,html,zip,jar -w $dirsearchWordlist -t $dirsearchThreads -u % | grep Target && tput sgr0 && ./lazyrecon.sh -r $domain -r $foldername -r %"
+dirsearcher()
+{
+  echo "Starting dirsearch..."
+  cat ./$domain/$foldername/urllist.txt | xargs -P$subdomainThreads -I % sh -c "python3 ~/tools/dirsearch/dirsearch.py -e php,asp,aspx,jsp,html,zip,jar -w $dirsearchWordlist -t $dirsearchThreads -u % | grep Target && tput sgr0 && ./lazyrecon.sh -r $domain -r $foldername -r %"
 }
 
-aqua(){
-echo "Starting aquatone scan..."
-cat ./$domain/$foldername/urllist.txt | aquatone -chrome-path $chromiumPath -out ./$domain/$foldername/aqua_out -threads $auquatoneThreads -silent
+aqua()
+{
+  echo "Starting aquatone scan..."
+  cat ./$domain/$foldername/urllist.txt | aquatone -chrome-path $chromiumPath -out ./$domain/$foldername/aqua_out -threads $auquatoneThreads -silent
 }
 
-searchcrtsh(){
- ~/tools/massdns/scripts/ct.py $domain 2>/dev/null > ./$domain/$foldername/tmp.txt
- [ -s ./$domain/$foldername/tmp.txt ] && cat ./$domain/$foldername/tmp.txt | ~/tools/massdns/bin/massdns -r ~/tools/massdns/lists/resolvers.txt -t A -q -o S -w  ./$domain/$foldername/crtsh.txt
- cat ./$domain/$foldername/$domain.txt | ~/tools/massdns/bin/massdns -r ~/tools/massdns/lists/resolvers.txt -t A -q -o S -w  ./$domain/$foldername/domaintemp.txt
+searchcrtsh()
+{
+  ~/tools/massdns/scripts/ct.py $domain 2>/dev/null > ./$domain/$foldername/tmp.txt
+  [ -s ./$domain/$foldername/tmp.txt ] && cat ./$domain/$foldername/tmp.txt | ~/tools/massdns/bin/massdns -r ~/tools/massdns/lists/resolvers.txt -t A -q -o S -w  ./$domain/$foldername/crtsh.txt
+  cat ./$domain/$foldername/$domain.txt | ~/tools/massdns/bin/massdns -r ~/tools/massdns/lists/resolvers.txt -t A -q -o S -w  ./$domain/$foldername/domaintemp.txt
 }
 
-mass(){
- ~/tools/massdns/scripts/subbrute.py $massdnsWordlist $domain | ~/tools/massdns/bin/massdns -r ~/tools/massdns/lists/resolvers.txt -t A -q -o S | grep -v 142.54.173.92 > ./$domain/$foldername/mass.txt
+mass()
+{
+  ~/tools/massdns/scripts/subbrute.py $massdnsWordlist $domain | ~/tools/massdns/bin/massdns -r ~/tools/massdns/lists/resolvers.txt -t A -q -o S | grep -v 142.54.173.92 > ./$domain/$foldername/mass.txt
 }
 
 nsrecords(){
-                echo "Checking http://crt.sh"
-                searchcrtsh $domain
-                echo "Starting Massdns Subdomain discovery this may take a while"
-                mass $domain > /dev/null
-                echo "Massdns finished..."
-                echo "${green}Started dns records check...${reset}"
-                echo "Looking into CNAME Records..."
+  echo "Checking http://crt.sh"
+  searchcrtsh $domain
+  echo "Starting Massdns Subdomain discovery this may take a while"
+  mass $domain > /dev/null
+  echo "Massdns finished..."
+  echo "${green}Started dns records check...${reset}"
+  echo "Looking into CNAME Records..."
 
+  cat ./$domain/$foldername/mass.txt >> ./$domain/$foldername/temp.txt
+  cat ./$domain/$foldername/domaintemp.txt >> ./$domain/$foldername/temp.txt
+  cat ./$domain/$foldername/crtsh.txt >> ./$domain/$foldername/temp.txt
 
-                cat ./$domain/$foldername/mass.txt >> ./$domain/$foldername/temp.txt
-                cat ./$domain/$foldername/domaintemp.txt >> ./$domain/$foldername/temp.txt
-                cat ./$domain/$foldername/crtsh.txt >> ./$domain/$foldername/temp.txt
+  cat ./$domain/$foldername/temp.txt | awk '{print $3}' | sort -u | while read line; do
+  wildcard=$(cat ./$domain/$foldername/temp.txt | grep -m 1 $line)
+  echo "$wildcard" >> ./$domain/$foldername/cleantemp.txt
+  done
 
-
-                cat ./$domain/$foldername/temp.txt | awk '{print $3}' | sort -u | while read line; do
-                wildcard=$(cat ./$domain/$foldername/temp.txt | grep -m 1 $line)
-                echo "$wildcard" >> ./$domain/$foldername/cleantemp.txt
-                done
-
-
-
-                cat ./$domain/$foldername/cleantemp.txt | grep CNAME >> ./$domain/$foldername/cnames.txt
-                cat ./$domain/$foldername/cnames.txt | sort -u | while read line; do
-                hostrec=$(echo "$line" | awk '{print $1}')
-                if [[ $(host $hostrec | grep NXDOMAIN) != "" ]]
-                then
-                echo "${red}Check the following domain for NS takeover:  $line ${reset}"
-                echo "$line" >> ./$domain/$foldername/pos.txt
-                else
-                echo -ne "working on it...\r"
-                fi
-                done
-                sleep 1
-                cat ./$domain/$foldername/$domain.txt > ./$domain/$foldername/alldomains.txt
-                cat ./$domain/$foldername/cleantemp.txt | awk  '{print $1}' | while read line; do
-                x="$line"
-                echo "${x%?}" >> ./$domain/$foldername/alldomains.txt
-                done
-                sleep 1
-
+  cat ./$domain/$foldername/cleantemp.txt | grep CNAME >> ./$domain/$foldername/cnames.txt
+  cat ./$domain/$foldername/cnames.txt | sort -u | while read line; do
+  hostrec=$(echo "$line" | awk '{print $1}')
+  if [[ $(host $hostrec | grep NXDOMAIN) != "" ]]
+  then
+  echo "${red}Check the following domain for NS takeover:  $line ${reset}"
+  echo "$line" >> ./$domain/$foldername/nstakeover.txt
+  else
+  echo -ne "working on it...\r"
+  fi
+  done
+  sleep 1
+  cat ./$domain/$foldername/$domain.txt > ./$domain/$foldername/alldomains.txt
+  cat ./$domain/$foldername/cleantemp.txt | awk  '{print $1}' | while read line; do
+  x="$line"
+  echo "${x%?}" >> ./$domain/$foldername/alldomains.txt
+  done
+  sleep 1
 }
 
 report(){
@@ -309,17 +326,13 @@ check=$(echo "$ln" | awk '{print $1}')
 
 done
 
-
-
 echo "</pre>" >> ./$domain/$foldername/reports/$subdomain.html
 echo "<h2>NMAP Results</h2>
 <pre>
-$(nmap -sV -T3 -Pn -p2075,2076,6443,3868,3366,8443,8080,9443,9091,3000,8000,5900,8081,6000,10000,8181,3306,5000,4000,8888,5432,15672,9999,161,4044,7077,4040,9000,8089,443,7447,7080,8880,8983,5673,7443,19000,19080 $subdomain  |  grep -E 'open|filtered|closed')
+$(nmap -sV -T4 -Pn -p2075,2076,6443,3868,3366,8443,8080,9443,9091,3000,8000,5900,8081,6000,10000,8181,3306,5000,4000,8888,5432,15672,9999,161,4044,7077,4040,9000,8089,443,7447,7080,8880,8983,5673,7443,19000,19080 $subdomain  |  grep -E 'open|filtered|closed')
 </pre>
 </div></article></div>
 </div></div></body></html>" >> ./$domain/$foldername/reports/$subdomain.html
-
-
 }
 master_report()
 {
@@ -387,7 +400,7 @@ done
 echo "</tbody></table>
 <div><h2>Possible NS Takeovers</h2></div>
 <pre>" >> ./$domain/$foldername/master_report.html
-cat ./$domain/$foldername/pos.txt >> ./$domain/$foldername/master_report.html
+cat ./$domain/$foldername/nstakeover.txt >> ./$domain/$foldername/master_report.html
 
 echo "</pre><div><h2>Wayback data</h2></div>" >> ./$domain/$foldername/master_report.html
 echo "<table><tbody>" >> ./$domain/$foldername/master_report.html
@@ -422,9 +435,10 @@ $(nmap -sV -T3 -Pn -p3868,3366,8443,8080,9443,9091,3000,8000,5900,8081,6000,1000
 
 }
 
-logo(){
-  #can't have a bash script without a cool logo :D
-  echo "${red}
+logo()
+{
+#can't have a bash script without a cool logo :D
+echo "${red}
  _     ____  ____ ___  _ ____  _____ ____  ____  _
 / \   /  _ \/_   \\\  \///  __\/  __//   _\/  _ \/ \  /|
 | |   | / \| /   / \  / |  \/||  \  |  /  | / \|| |\ ||
@@ -432,20 +446,22 @@ logo(){
 \____/\_/ \|\____//_/   \_/\_\\\____\\\____/\____/\_/  \\|
 ${reset}                                                      "
 }
-cleandirsearch(){
+
+cleandirsearch()
+{
 	cat ./$domain/$foldername/urllist.txt | sed 's/\http\:\/\///g' |  sed 's/\https\:\/\///g' | sort -u | while read line; do
   [ -d ~/tools/dirsearch/reports/$line/ ] && ls ~/tools/dirsearch/reports/$line/ | grep -v old | while read i; do
   mv ~/tools/dirsearch/reports/$line/$i ~/tools/dirsearch/reports/$line/$i.old
   done
   done
-  }
-cleantemp(){
+}
 
+cleantemp()
+{
     rm ./$domain/$foldername/temp.txt
   	rm ./$domain/$foldername/tmp.txt
     rm ./$domain/$foldername/domaintemp.txt
     rm ./$domain/$foldername/cleantemp.txt
-
 }
 main(){
 if [ -z "${domain}" ]; then
@@ -472,7 +488,7 @@ fi
   touch ./$domain/$foldername/crtsh.txt
   touch ./$domain/$foldername/mass.txt
   touch ./$domain/$foldername/cnames.txt
-  touch ./$domain/$foldername/pos.txt
+  touch ./$domain/$foldername/nstakeover.txt
   touch ./$domain/$foldername/alldomains.txt
   touch ./$domain/$foldername/temp.txt
   touch ./$domain/$foldername/tmp.txt
@@ -480,6 +496,7 @@ fi
   touch ./$domain/$foldername/ipaddress.txt
   touch ./$domain/$foldername/cleantemp.txt
   touch ./$domain/$foldername/master_report.html
+  touch ./$domain/$foldername/urllist.txt
 
   cleantemp
   recon $domain
@@ -491,6 +508,7 @@ fi
   stty sane
   tput sgr0
 }
+
 todate=$(date +"%Y-%m-%d")
 path=$(pwd)
 foldername=recon-$todate
