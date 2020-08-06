@@ -42,13 +42,13 @@ touch ./$1/ssrf
 echo "Starting Discovery. This WILL take a while..."
 
 echo "subfinder..."
-subfinder -d $1 | tee -a ./$1/domains > /dev/null
+subfinder -d $1 -o ./$1/domains > /dev/null
 
 echo "subfinder finished -> assetfinder" 
 assetfinder -subs-only $1 | tee -a ./$1/domains > /dev/null
 
 echo "assetfinder finished -> crt.sh"
-curl -s "https://crt.sh/\?q\=%25.$1\&output\=json" | jq -r '.[].name_value' | sed 's/\*\.//g' | sort -u | tee -a domains  > /dev/null
+curl -s "https://crt.sh/\?q\=%25.$1\&output\=json" | jq -r '.[].name_value' | sed 's/\*\.//g' | sort -u | tee -a ./$1/domains  > /dev/null
 
 echo "crt.sh finished -> DNS Resolve with MassDNS"
 ~/tools/massdns/scripts/subbrute.py ~/tools/SecLists/Discovery/DNS/clean-jhaddix-dns.txt $1 | ~/tools/massdns/bin/massdns -r ~/tools/massdns/lists/resolvers.txt -t A -q -o S -w ./$1/mass-domains.txt

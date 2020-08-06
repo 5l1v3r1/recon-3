@@ -1,0 +1,2 @@
+Starting Nmap 7.80 ( https://nmap.org ) at 2020-08-06 13:21 BST
+Nmap done: 0 IP addresses (0 hosts up) scanned in 0.26 seconds
