@@ -1,5 +1,7 @@
 # Usage
 
-`./recon.sh -d domain.com`
+`./recon.sh domain.com`
 
-Credit goes to nahamsec for inital script <3 https://github.com/nahamsec/
+Let the script go to work
+
+! Install script coming soon
